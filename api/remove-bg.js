@@ -1,13 +1,9 @@
 // /api/remove-bg.js
-// remove.bg API — Global limit 50 per month for whole site
-// RUNTIME MUST BE NODEJS (not edge)
-
 import fetch from "node-fetch";
 import { kv } from "@vercel/kv";
 
-// Make sure we run on Node.js runtime
 export const config = {
-  runtime: "nodejs18.x",
+  runtime: "nodejs",
 };
 
 // Returns "2025-11" monthly key
