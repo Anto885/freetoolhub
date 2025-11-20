@@ -1,118 +1,85 @@
 // /api/remove-bg.js
-// remove.bg API — Global limit 50 per month for whole site (no IP checks)
-// Requires: Vercel KV enabled & REMOVE_BG_KEY env var
+// remove.bg API — Global limit 50 per month for whole site
+// RUNTIME MUST BE NODEJS (not edge)
 
 import fetch from "node-fetch";
+import { kv } from "@vercel/kv";
 
+// Make sure we run on Node.js runtime
 export const config = {
-  runtime: "edge",
+  runtime: "nodejs18.x",
 };
 
-const KV_NAMESPACE = "freetoolhub_global_limit";
-
-// Get "2025-11" style key to reset monthly limit
+// Returns "2025-11" monthly key
 function getMonthKey() {
   const d = new Date();
   return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "POST only" }), {
-        status: 405,
-        headers: { "Content-Type": "application/json" },
-      });
+      return res.status(405).json({ error: "POST only" });
     }
 
     const apiKey = process.env.REMOVE_BG_KEY;
     if (!apiKey) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing REMOVE_BG_KEY environment variable",
-        }),
-        { status: 500 }
-      );
+      return res
+        .status(500)
+        .json({ error: "Missing REMOVE_BG_KEY environment variable" });
     }
 
     const monthKey = getMonthKey();
-    const usageKey = `${KV_NAMESPACE}:${monthKey}`;
+    const usageKey = `freetoolhub_global_limit:${monthKey}`;
 
-    // Load KV
-    const kv = await import("@vercel/kv");
-
-    // Check global usage
+    // load usage counter
     const used = (await kv.get(usageKey)) || 0;
 
     if (used >= 50) {
-      return new Response(
-        JSON.stringify({
-          error: "Monthly limit of 50 remove.bg requests reached.",
-        }),
-        { status: 429 }
-      );
+      return res
+        .status(429)
+        .json({ error: "Monthly limit of 50 images reached." });
     }
 
     // Parse uploaded file
-    const contentType = req.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
-      return new Response(JSON.stringify({ error: "File required" }), {
-        status: 400,
-      });
-    }
-
-    const formData = await req.formData();
-    const file = formData.get("file");
+    const form = await req.formData();
+    const file = form.get("file");
 
     if (!file) {
-      return new Response(JSON.stringify({ error: "Missing file" }), {
-        status: 400,
-      });
+      return res.status(400).json({ error: "Missing file" });
     }
 
-    // Remove.bg request
+    // Prepare request to remove.bg
     const bgForm = new FormData();
     bgForm.append("image_file", file);
     bgForm.append("size", "auto");
 
-    const removeBgRes = await fetch("https://api.remove.bg/v1.0/removebg", {
+    const removeRes = await fetch("https://api.remove.bg/v1.0/removebg", {
       method: "POST",
-      headers: {
-        "X-Api-Key": apiKey,
-      },
+      headers: { "X-Api-Key": apiKey },
       body: bgForm,
     });
 
-    if (!removeBgRes.ok) {
-      const errText = await removeBgRes.text();
-      return new Response(
-        JSON.stringify({
-          error: "remove.bg error",
-          detail: errText,
-        }),
-        { status: 500 }
-      );
+    if (!removeRes.ok) {
+      const errText = await removeRes.text();
+      return res.status(500).json({ error: "remove.bg error", detail: errText });
     }
 
-    const arrayBuff = await removeBgRes.arrayBuffer();
+    const buffer = Buffer.from(await removeRes.arrayBuffer());
 
-    // Increase global usage
+    // increment usage
     await kv.set(usageKey, used + 1);
 
-    return new Response(arrayBuff, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        "Content-Disposition": 'inline; filename="removed-bg.png"',
-      },
-    });
-  } catch (err) {
-    return new Response(
-      JSON.stringify({
-        error: "Server error",
-        detail: String(err),
-      }),
-      { status: 500 }
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader(
+      "Content-Disposition",
+      'inline; filename="removed-background.png"'
     );
+    return res.send(buffer);
+  } catch (err) {
+    return res.status(500).json({
+      error: "Server error",
+      detail: String(err),
+    });
   }
 }
