@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Background Remover — remove.bg</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../style.css">
+<style>
+.wrap { max-width: 900px; margin: 30px auto; background:#fff; padding:20px; border-radius:14px; box-shadow:0 8px 20px rgba(0,0,0,.05);}
+.preview, .result img { max-width:100%; margin-top: 20px; }
+.btn { padding:10px 18px; background:#2563eb; color:#fff; border:0; border-radius:10px; cursor:pointer; }
+.btn.secondary { background:#fff; color:#333; border:1px solid #ddd; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<a href="../index.html" style="text-decoration:none;color:#2563eb">← Back</a>
+
+<h2>AI Background Remover (remove.bg)</h2>
+<p>High-quality background removal via remove.bg API. 50 removals/month per user.</p>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<button class="btn" id="removeBtn" disabled>Remove Background</button>
+<button class="btn secondary" id="downloadBtn" disabled>Download PNG</button>
+
+<p id="status" style="margin-top:15px;color:#444;">Choose an image.</p>
+
+<div class="preview">
+  <h4>Preview:</h4>
+  <img id="previewImg" src="">
+</div>
+
+<div class="result">
+  <h4>Result:</h4>
+  <img id="resultImg" src="">
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const removeBtn = document.getElementById('removeBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const previewImg = document.getElementById('previewImg');
+const resultImg = document.getElementById('resultImg');
+const status = document.getElementById('status');
+
+let lastBlob = null;
+
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  previewImg.src = URL.createObjectURL(f);
+  resultImg.src = '';
+  lastBlob = null;
+  removeBtn.disabled = false;
+  downloadBtn.disabled = true;
+  status.textContent = 'Ready. Click Remove Background.';
+});
+
+removeBtn.addEventListener('click', async () => {
+  const f = fileInput.files[0];
+  if (!f) {
+    alert("Select a file first!");
+    return;
+  }
+
+  status.textContent = 'Uploading to server...';
+  removeBtn.disabled = true;
+
+  const form = new FormData();
+  form.append('file', f);
+
+  try {
+    const res = await fetch('/api/remove-bg', {
+      method: 'POST',
+      body: form
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      status.textContent = 'Error: ' + err;
+      removeBtn.disabled = false;
+      return;
+    }
+
+    const blob = await res.blob();
+    lastBlob = blob;
+    resultImg.src = URL.createObjectURL(blob);
+    downloadBtn.disabled = false;
+    status.textContent = 'Done!';
+  }
+  catch (e) {
+    status.textContent = 'Request error: ' + e;
+  }
+
+  removeBtn.disabled = false;
+});
+
+downloadBtn.addEventListener('click', () => {
+  if (!lastBlob) return;
+  const url = URL.createObjectURL(lastBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'removed-bg.png';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+
+</div>
+</body>
+</html>

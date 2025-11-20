@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF Merge / Split — FreeToolHub</title>
+</head>
+<body>
+  <div style="max-width:920px;margin:28px auto;padding:18px;font-family:Inter,Arial,sans-serif;color:#0f172a">
+    <a href="../index.html" style="color:#2563eb;text-decoration:none">← Back</a>
+    <div style="background:#fff;border-radius:10px;padding:18px;box-shadow:0 8px 24px rgba(15,23,42,0.06);margin-top:12px">
+      
+<h1 style="font-size:20px;margin:0 0 6px">PDF Merge / Split</h1>
+<p style="color:#6b7280;margin:6px 0">Combine multiple PDF files or split one into parts.</p>
+<input id="mergeFiles" type="file" accept="application/pdf" multiple style="margin-top:8px">
+<div style="margin-top:8px"><button id="mergeBtn" style="background:#2563eb;color:white;padding:8px 12px;border-radius:8px;border:none">Convert</button> <a id="mergeDl" style="margin-left:12px;display:none;color:#2563eb">Download</a></div>
+<hr style="margin:12px 0;border:none;border-top:1px solid #eef2f6">
+<input id="splitFile" type="file" accept="application/pdf" style="margin-top:6px">
+<label style="display:block;margin-top:6px;color:#6b7280">Page to extract: <input id="pageNo" type="number" value="1" style="width:70px;padding:6px"></label>
+<div style="margin-top:8px"><button id="splitBtn" style="background:#2563eb;color:white;padding:8px 12px;border-radius:8px;border:none">Extract</button> <a id="splitDl" style="margin-left:12px;display:none;color:#2563eb">Download</a></div>
+<div id="log" style="margin:8px 0;color:#6b7280;font-size:13px"></div>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+<script>
+document.getElementById('mergeBtn').onclick = async ()=>{ const files = Array.from(document.getElementById('mergeFiles').files); if(!files.length){ alert('Select PDFs'); return; } const merged = await PDFLib.PDFDocument.create(); for(const f of files){ const bytes = await f.arrayBuffer(); const pdf = await PDFLib.PDFDocument.load(bytes); const copied = await merged.copyPages(pdf, pdf.getPageIndices()); copied.forEach(p => merged.addPage(p)); } const out = await merged.save(); const blob = new Blob([out],{type:'application/pdf'}); const a = document.getElementById('mergeDl'); a.href = URL.createObjectURL(blob); a.style.display='inline-block'; a.download='merged.pdf'; a.textContent='Download merged PDF'; document.getElementById('log').textContent='Merged ' + files.length; };
+document.getElementById('splitBtn').onclick = async ()=>{ const f = document.getElementById('splitFile').files[0]; if(!f){ alert('Choose PDF'); return; } const pno = Number(document.getElementById('pageNo').value)-1; const bytes = await f.arrayBuffer(); const pdf = await PDFLib.PDFDocument.load(bytes); if(pno<0 || pno>=pdf.getPageCount()){ alert('Page out of range'); return; } const newPdf = await PDFLib.PDFDocument.create(); const [copied] = await newPdf.copyPages(pdf,[pno]); newPdf.addPage(copied); const out = await newPdf.save(); const a = document.getElementById('splitDl'); a.href = URL.createObjectURL(new Blob([out],{type:'application/pdf'})); a.style.display='inline-block'; a.download = f.name.replace(/\.pdf$/i,'') + '-page-' + (pno+1) + '.pdf'; a.textContent='Download extracted page'; document.getElementById('log').textContent='Extracted page ' + (pno+1); };
+</script>
+
+    </div>
+    <footer style="text-align:center;color:#94a3b8;font-size:13px;margin-top:18px">FreeToolHub © 2025</footer>
+  </div>
+</body>
+</html>

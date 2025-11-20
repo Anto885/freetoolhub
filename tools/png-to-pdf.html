@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PNG → PDF Converter — FreeToolHub</title>
+</head>
+<body>
+  <div style="max-width:920px;margin:28px auto;padding:18px;font-family:Inter,Arial,sans-serif;color:#0f172a">
+    <a href="../index.html" style="color:#2563eb;text-decoration:none">← Back</a>
+    <div style="background:#fff;border-radius:10px;padding:18px;box-shadow:0 8px 24px rgba(15,23,42,0.06);margin-top:12px">
+      
+<h1 style="font-size:20px;margin:0 0 6px">PNG → PDF Converter</h1>
+<p style="color:#6b7280;margin:6px 0">Easily convert PNG images to PDF files for sharing or printing.</p>
+<input id="imgfile" type="file" accept="image/*" style="margin-top:8px">
+<div style="margin-top:12px"><button id="conv" style="background:#2563eb;color:white;padding:8px 12px;border-radius:8px;border:none">Convert</button> <a id="download" style="margin-left:12px;display:none;color:#2563eb">Download</a></div>
+<div id="log" style="margin-top:8px;color:#6b7280;font-size:13px"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const jsPDF = window.jspdf && (window.jspdf.jsPDF || window.jspdf);
+document.getElementById('conv').onclick = async ()=>{
+  const f = document.getElementById('imgfile').files[0]; if(!f){ alert('Choose image'); return; }
+  const arr = await f.arrayBuffer();
+  const blob = new Blob([arr]); const url = URL.createObjectURL(blob);
+  const img = new Image(); img.onload = ()=>{
+    const pdf = new jsPDF({unit:'px',format:[img.width,img.height]}); pdf.addImage(img,'PNG',0,0,img.width,img.height);
+    const out = pdf.output('blob'); const outUrl = URL.createObjectURL(out);
+    const a = document.getElementById('download'); a.href = outUrl; a.download = (f.name.replace(/\.[^.]+$/,'')) + '.pdf'; a.style.display='inline-block'; a.textContent='Download PDF';
+    document.getElementById('log').textContent = 'Ready — click Download.';
+  }; img.onerror = ()=>{ alert('Error loading image'); }; img.src = url;
+};
+</script>
+
+    </div>
+    <footer style="text-align:center;color:#94a3b8;font-size:13px;margin-top:18px">FreeToolHub © 2025</footer>
+  </div>
+</body>
+</html>

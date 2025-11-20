@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Excel → CSV Converter — FreeToolHub</title>
+</head>
+<body>
+  <div style="max-width:920px;margin:28px auto;padding:18px;font-family:Inter,Arial,sans-serif;color:#0f172a">
+    <a href="../index.html" style="color:#2563eb;text-decoration:none">← Back</a>
+    <div style="background:#fff;border-radius:10px;padding:18px;box-shadow:0 8px 24px rgba(15,23,42,0.06);margin-top:12px">
+      
+<h1 style="font-size:20px;margin:0 0 6px">Excel → CSV Converter</h1>
+<p style="color:#6b7280;margin:6px 0">Quickly export Excel files to CSV format for data processing.</p>
+<input id="xls" type="file" accept=".xlsx,.xls" style="margin-top:8px">
+<div style="margin-top:12px"><button id="conv" style="background:#2563eb;color:white;padding:8px 12px;border-radius:8px;border:none">Convert</button> <a id="download" style="margin-left:12px;display:none;color:#2563eb">Download CSV</a></div>
+<pre id="log" style="margin-top:8px;color:#6b7280;font-size:13px"></pre>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+document.getElementById('conv').onclick = async ()=>{
+  const f = document.getElementById('xls').files[0]; if(!f){ alert('Choose Excel file'); return; }
+  const data = await f.arrayBuffer();
+  const workbook = XLSX.read(data, {type:'array'});
+  const first = workbook.SheetNames[0];
+  const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[first]);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.getElementById('download'); a.href = url; a.download = f.name.replace(/\.[^.]+$/,'') + '.csv'; a.style.display='inline-block'; a.textContent='Download CSV';
+  document.getElementById('log').textContent = 'CSV prepared.';
+};
+</script>
+
+    </div>
+    <footer style="text-align:center;color:#94a3b8;font-size:13px;margin-top:18px">FreeToolHub © 2025</footer>
+  </div>
+</body>
+</html>

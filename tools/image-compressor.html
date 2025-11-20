@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Image Compressor — FreeToolHub</title>
+<link rel="stylesheet" href="../style.css"/>
+<style>
+/* local small tweaks to look like main UI card */
+.container { max-width:900px; margin:42px auto; padding:20px; }
+.card { background:#fff; border-radius:12px; padding:22px; box-shadow:0 8px 30px rgba(13,20,35,0.06); }
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.preview{margin-top:16px; display:flex; gap:12px; align-items:center;}
+.info{color:#6b7280;font-size:13px;margin-top:8px}
+.small{font-size:13px;padding:8px 12px;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="../index.html" style="color:#2563eb;text-decoration:none;">← Back</a>
+  <div class="card">
+    <h2>Image Compressor</h2>
+    <p class="muted">Reduce image size while keeping visual quality. Choose options below and download the compressed result.</p>
+
+    <div class="controls">
+      <input id="file" type="file" accept="image/*" />
+      <label class="small">Quality <input id="quality" type="range" min="0.3" max="1" step="0.05" value="0.8"></label>
+      <label class="small"><input id="keepFormat" type="checkbox" checked> Keep original format when possible</label>
+      <button id="run" class="small" style="background:#2563eb;color:#fff;border:none;border-radius:8px;">Compress</button>
+      <button id="viewBefore" class="small" style="background:#eef2ff;border:1px solid #e0e7ff;">Preview</button>
+    </div>
+
+    <div id="status" class="info"></div>
+    <div id="preview" class="preview"></div>
+  </div>
+</div>
+
+<script>
+const fileInput = document.getElementById('file');
+const qualityInput = document.getElementById('quality');
+const keepFormat = document.getElementById('keepFormat');
+const runBtn = document.getElementById('run');
+const status = document.getElementById('status');
+const preview = document.getElementById('preview');
+
+function formatBytes(bytes){ if(bytes===0) return '0 B'; const k=1024,s=['B','KB','MB','GB']; const i=Math.floor(Math.log(bytes)/Math.log(k)); return (bytes/Math.pow(k,i)).toFixed(2)+' '+s[i]; }
+
+runBtn.addEventListener('click', async ()=>{
+  const f = fileInput.files[0];
+  if(!f) return alert('Please select an image first');
+  status.textContent = 'Compressing...';
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    const img = new Image();
+    img.src = e.target.result;
+    await img.decode();
+    // draw on canvas
+    const canvas = document.createElement('canvas');
+    const maxDim = 4000; // avoid insane large canvases
+    let w = img.width, h = img.height;
+    if(w>maxDim || h>maxDim){
+      const ratio = Math.min(maxDim/w, maxDim/h);
+      w = Math.round(w*ratio); h = Math.round(h*ratio);
+    }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    // decide mime
+    const origType = f.type || 'image/jpeg';
+    let outType = origType;
+    if(!keepFormat.checked){
+      // prefer webp if available in browser
+      outType = (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Chrome')!==-1) ? 'image/webp' : 'image/jpeg';
+    } else {
+      // if original is png with alpha and quality <1, we must keep png to preserve alpha; otherwise convert to jpeg/webp
+      if(origType === 'image/png' && hasAlpha(ctx, w, h)) {
+        outType = 'image/png';
+      } else {
+        outType = 'image/jpeg';
+      }
+    }
+    const q = parseFloat(qualityInput.value);
+    canvas.toBlob((blob)=>{
+      const url = URL.createObjectURL(blob);
+      preview.innerHTML = '';
+      const before = document.createElement('div');
+      before.innerHTML = `<div style="font-size:13px;color:#6b7280">Original: ${f.name} — ${formatBytes(f.size)}</div>`;
+      const a = document.createElement('a'); a.href = url; a.download = 'compressed.' + mimeToExt(outType);
+      a.textContent = 'Download compressed ('+formatBytes(blob.size)+')';
+      a.className = 'small';
+      before.appendChild(a);
+      preview.appendChild(before);
+      const imgEl = document.createElement('img'); imgEl.src = url; imgEl.style.maxWidth='220px'; imgEl.style.maxHeight='160px'; imgEl.style.borderRadius='8px'; preview.appendChild(imgEl);
+      status.textContent = 'Done';
+    }, outType, q);
+  };
+  reader.readAsDataURL(f);
+});
+
+document.getElementById('viewBefore').addEventListener('click', ()=>{
+  const f = fileInput.files[0];
+  if(!f) return alert('Choose an image first');
+  const url = URL.createObjectURL(f);
+  preview.innerHTML = `<div style="font-size:13px;color:#6b7280">Original: ${f.name} — ${formatBytes(f.size)}</div><img src="${url}" style="max-width:220px;border-radius:8px">`;
+});
+
+function mimeToExt(mime){
+  if(mime.includes('png')) return 'png';
+  if(mime.includes('webp')) return 'webp';
+  return 'jpg';
+}
+
+function hasAlpha(ctx,w,h){
+  try{
+    const d = ctx.getImageData(0,0,Math.min(w,10),Math.min(h,10)).data;
+    for(let i=3;i<d.length;i+=4) if(d[i]<255) return true;
+  }catch(e){ return false; }
+  return false;
+}
+</script>
+</body>
+</html>

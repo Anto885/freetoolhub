@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PDF Compressor — FreeToolHub</title>
+<link rel="stylesheet" href="../style.css"/>
+<style>
+.container{max-width:900px;margin:42px auto;padding:20px}
+.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 30px rgba(13,20,35,0.06)}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.small{padding:8px 12px;border-radius:8px}
+.info{color:#6b7280;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="../index.html" style="color:#2563eb;text-decoration:none;">← Back</a>
+  <div class="card">
+    <h2>PDF Compressor</h2>
+    <p class="muted">This tool re-renders each PDF page to an image at reduced resolution/quality and rebuilds a new PDF — works fully in your browser.</p>
+
+    <div class="controls">
+      <input id="pdfFile" type="file" accept="application/pdf"/>
+      <label class="small">Scale <input id="scale" type="range" min="0.4" max="1.0" step="0.1" value="0.8"></label>
+      <label class="small">Image quality <input id="imgQuality" type="range" min="0.3" max="1" step="0.05" value="0.8"></label>
+      <button id="compress" class="small" style="background:#2563eb;color:#fff;border:none;">Compress</button>
+    </div>
+
+    <div id="status" class="info"></div>
+    <div id="result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- pdf.js and jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+const pdfInput = document.getElementById('pdfFile');
+const compressBtn = document.getElementById('compress');
+const status = document.getElementById('status');
+const result = document.getElementById('result');
+
+compressBtn.addEventListener('click', async ()=>{
+  const file = pdfInput.files[0]; if(!file) return alert('Select a PDF file');
+  status.textContent = 'Loading PDF...';
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8 = new Uint8Array(arrayBuffer);
+  const loadingTask = pdfjsLib.getDocument({data:uint8});
+  const pdf = await loadingTask.promise;
+  const { jsPDF } = window.jspdf;
+  const outPdf = new jsPDF({unit:'pt',format:'a4'});
+  const scale = parseFloat(document.getElementById('scale').value);
+  const q = parseFloat(document.getElementById('imgQuality').value);
+
+  for(let i=1;i<=pdf.numPages;i++){
+    status.textContent = `Rendering page ${i}/${pdf.numPages}...`;
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({scale: 1.0 * scale});
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    await page.render({canvasContext:context, viewport}).promise;
+    // convert canvas to blob (jpeg)
+    const dataUrl = canvas.toDataURL('image/jpeg', q);
+    // add to pdf
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(r=>img.onload=r);
+    const pageWidth = outPdf.internal.pageSize.getWidth();
+    const pageHeight = (img.height * pageWidth) / img.width;
+    if(i>1) outPdf.addPage();
+    outPdf.addImage(img, 'JPEG', 0, 0, pageWidth, pageHeight);
+  }
+
+  status.textContent = 'Saving compressed PDF...';
+  const blob = outPdf.output('blob');
+  const url = URL.createObjectURL(blob);
+  result.innerHTML = `<a href="${url}" download="compressed.pdf" class="small" style="background:#2563eb;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;display:inline-block">Download compressed PDF</a>
+  <div style="margin-top:8px;color:#6b7280">Original size: ${formatBytes(file.size)} — New: ${formatBytes(blob.size)}</div>`;
+  status.textContent = 'Done';
+});
+
+function formatBytes(bytes){ if(bytes===0) return '0 B'; const k=1024,s=['B','KB','MB','GB']; const i=Math.floor(Math.log(bytes)/Math.log(k)); return (bytes/Math.pow(k,i)).toFixed(2)+' '+s[i]; }
+</script>
+</body>
+</html>
