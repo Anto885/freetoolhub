@@ -1,0 +1,12 @@
+{
+  "name": "freetoolhub",
+  "version": "1.0.0",
+  "description": "Free online tools for everyday tasks",
+  "type": "module",
+  "scripts": {
+    "postinstall": "cp node_modules/@vercel/analytics/dist/index.mjs analytics.js"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
